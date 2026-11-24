@@ -1,14 +1,40 @@
-# Ajaia starter
+# Docs: a small collaborative document editor
 
-A small full-stack starter: FastAPI backend, React frontend, one Claude call that returns schema-validated JSON, and a human review step. The example feature is request triage (paste text, get category and priority, rules decide if a person checks it). It is meant to be renamed and reshaped for the real task.
+A lightweight Google Docs style editor. Create and edit rich text documents, import a file, share a document with another user, and reopen everything after a refresh.
+
+Built as an Ajaia take-home. Scope and tradeoffs are in [ARCHITECTURE.md](ARCHITECTURE.md). AI workflow notes are in [AI_WORKFLOW.md](AI_WORKFLOW.md). Full list of what is and is not done is in [SUBMISSION.md](SUBMISSION.md).
 
 | Part | Stack |
 |---|---|
 | Backend | Python 3.12, FastAPI, Pydantic, SQLAlchemy (SQLite locally, Postgres via `DATABASE_URL`) |
-| LLM | Anthropic Python SDK, structured outputs (`messages.parse` + Pydantic), one retry on bad output |
-| Frontend | React 19, Vite, TypeScript, Tailwind 4 |
-| Quality | pytest (12 tests, no network), eval runner with 8 labeled cases |
-| Ship | Dockerfile, GitHub Actions CI, `render.yaml` (backend), `vercel.json` (frontend) |
+| Import | mammoth (.docx), markdown (.md), plain text escaping (.txt), nh3 (HTML sanitizing) |
+| Frontend | React 19, Vite, TypeScript, Tailwind 4, TipTap 3 editor |
+| Tests | pytest, 18 tests, no network |
+| Deploy | Render (backend, Docker, `render.yaml`), Vercel (frontend, `vercel.json`) |
+
+## Features
+
+- Create a document, rename it, edit it, and reopen it after a refresh
+- Bold, italic, underline, headings (Text, H1, H2), bullet and numbered lists
+- Autosave 2 seconds after you stop typing, plus a Save button and Ctrl+S
+- Import a `.txt`, `.md` or `.docx` file. It opens as a new document. **Limit: 2 MB.**
+- Share a document by email. The shared person can open and edit it.
+- Two sections on the home screen: owned by you, and shared with you
+- Switch between three seeded users with the "Signed in as" dropdown
+
+## Mock login (read this first)
+
+There is no real login. The dropdown picks one of three seeded users, and the frontend sends that user's id in an `X-User-Id` header. Anyone can send any id. This is only so reviewers can test sharing as different people.
+
+Seeded users (no passwords):
+
+| Name | Email |
+|---|---|
+| Ava Chen | ava@example.com |
+| Ben Ortiz | ben@example.com |
+| Cara Singh | cara@example.com |
+
+Suggested test: sign in as Ava, create a document, share it with ben@example.com. Switch to Ben and see it under "Shared with you". Switch to Cara and see that she cannot open it.
 
 ## Run it locally (Windows cmd)
 
@@ -23,8 +49,7 @@ pip install -r requirements.txt
 copy .env.example .env
 uvicorn app.main:app --reload
 ```
-API runs on http://localhost:8000 and docs are at http://localhost:8000/docs.
-It starts in `LLM_MODE=mock`, so no API key is needed. To call Claude, set `LLM_MODE=live` and `ANTHROPIC_API_KEY` in `backend\.env`.
+The API runs on http://localhost:8000. Interactive docs are at http://localhost:8000/docs. The first start creates `app.db` (SQLite) and the seed users.
 
 Frontend, in a second terminal:
 ```
@@ -35,57 +60,50 @@ npm run dev
 ```
 Open http://localhost:5173.
 
-## Tests and evals
+## Tests
 
 ```
 cd backend
 .venv\Scripts\activate
 pytest -q
-python -m evals.run_evals
-python -m evals.run_evals --live
-```
-- `pytest` never calls the network. The live code path is tested with a fake client (retry, refusal, cut-off output).
-- `run_evals` prints a pass/fail table and writes `backend\evals\results.md`. In mock mode it scores 6/8 on purpose: the keyword mock misses the prompt injection and the Spanish input, which is the baseline the real model should beat.
-
-## How the LLM step works
-
-1. User text is wrapped in `<user_input>` tags and the system prompt says to treat it as data.
-2. `client.beta.messages.parse(..., output_format=Analysis)` asks for JSON matching the Pydantic model. The SDK validates it.
-3. Bad or cut-off output gets one retry. Timeouts, rate limits and API errors become a clear `502` with a readable message.
-4. Deterministic rules in `app/rules.py` decide `needs_review`. Rules can only add review, never remove it.
-5. A person approves or rejects flagged items in the UI.
-
-Why not forced tool use: Claude Opus 5.5 returns a 400 for `tool_choice` of type `any` or `tool`. Structured outputs give the same schema guarantee.
-
-Refusal fallback: requests send `fallbacks="default"` (beta `server-side-fallback-2026-07-01`), so if a safety classifier declines, the API retries on a fallback model in the same call. Remove both lines in `app/llm.py` to turn it off.
-
-## Project layout
-
-```
-backend/
-  app/main.py        routes
-  app/llm.py         Claude call, validation, retry, mock mode
-  app/rules.py       deterministic review rules
-  app/schemas.py     Pydantic models (API + LLM output)
-  app/models.py      SQLAlchemy table
-  app/db.py          engine + session (sqlite or postgres)
-  app/config.py      env settings
-  tests/             pytest
-  evals/             cases.json + run_evals.py
-frontend/
-  src/api.ts         every backend call
-  src/App.tsx        the one screen
-docs/
-  submission.md      fill this in during the timer
-  working-logs.md    decision log + AI usage log
-  test-day.md        runbook for the 240 minutes
 ```
 
-## Security notes
+```
+cd frontend
+npm run lint
+npm run build
+```
 
-- Secrets only in env vars. `.env` is gitignored, `.env.example` is committed.
-- Input length is capped (`MAX_TEXT_LENGTH`), Pydantic validates every request body.
-- ORM queries only, no string-built SQL.
-- LLM output is validated against a schema before it is stored.
-- CORS is limited to `CORS_ORIGINS`.
-- No auth yet. Add it only if the task asks for users.
+The tests cover:
+- No user header or unknown user gives 401
+- Owner can create, rename and edit
+- A stranger gets 404 on every document route, and does not see the document in their list
+- A shared user can edit but cannot share or see the share list (403)
+- Sharing with an unknown email, sharing with yourself, and sharing twice
+- Saved HTML is sanitized (no scripts, no `onclick`, no `javascript:` links)
+- Import of `.txt`, `.md` and a hand-built `.docx`, plus the 415, 413 and 422 error cases
+
+## Deploy
+
+**Backend (Render):** New > Blueprint > pick this repo. Render reads `render.yaml`. Set two env vars in the dashboard:
+- `DATABASE_URL`: the Supabase Postgres pooler URI (`postgres://` or `postgresql://` both work)
+- `CORS_ORIGINS`: the Vercel URL, no trailing slash
+
+**Frontend (Vercel):** import the repo, set the root directory to `frontend`, and add `VITE_API_URL` pointing to the Render URL.
+
+Without `DATABASE_URL`, the backend uses SQLite on the container disk. That resets on every deploy, so set it for anything you want to keep.
+
+## Layout
+
+```
+backend/app/main.py       routes and mock auth header
+backend/app/rules.py      access rules (owner, editor, nobody)
+backend/app/importer.py   .txt, .md, .docx to sanitized HTML
+backend/app/models.py     users, documents, shares
+backend/app/seed.py       the three seeded users
+backend/tests/            pytest
+frontend/src/App.tsx      user switcher, open document in the URL hash
+frontend/src/DocumentList.tsx   owned and shared lists, new, import
+frontend/src/Editor.tsx   TipTap editor, toolbar, autosave, share panel
+frontend/src/api.ts       every backend call
+```
