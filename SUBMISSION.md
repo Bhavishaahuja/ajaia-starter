@@ -5,7 +5,7 @@
 - Live app (Vercel): https://ajaia-starter-ywx4.vercel.app
 - API (Render): https://ajaia-api-f05d.onrender.com
 - Repo: https://github.com/Bhavishaahuja/ajaia-starter
-- Walkthrough video: see [video-url.txt](video-url.txt)
+- Walkthrough video: https://youtu.be/-iVW--l8haU
 
 ## Seeded users (mock login, no passwords)
 
