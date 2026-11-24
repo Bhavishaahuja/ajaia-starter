@@ -116,8 +116,7 @@ export default function DocumentList({ docs, onOpen, onChanged, onError }: Props
 
       <section>
         <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Owned by you
-          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] text-slate-700">{owned.length}</span>
+          {`Owned by you (${owned.length})`}
         </h3>
         {owned.length === 0 ? (
           <p className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
@@ -134,8 +133,7 @@ export default function DocumentList({ docs, onOpen, onChanged, onError }: Props
 
       <section>
         <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Shared with you
-          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] text-slate-700">{shared.length}</span>
+          {`Shared with you (${shared.length})`}
         </h3>
         {shared.length === 0 ? (
           <p className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
