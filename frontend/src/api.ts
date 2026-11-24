@@ -4,6 +4,14 @@ const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replac
 
 export type User = { id: number; email: string; name: string }
 
+export class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.status = status
+  }
+}
+
 export type DocSummary = {
   id: number
   title: string
@@ -17,11 +25,11 @@ export type DocFull = DocSummary & { html: string }
 
 export type Share = { user_id: number; email: string; name: string }
 
-// mock auth: the chosen seed user's id goes in a header. Not real login.
-let currentUserId: number | null = null
+// Supabase access token from the login. Sent as a Bearer token on every call.
+let accessToken: string | null = null
 
-export function setCurrentUser(id: number | null) {
-  currentUserId = id
+export function setAccessToken(token: string | null) {
+  accessToken = token
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -30,8 +38,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json'
   }
-  if (currentUserId !== null) {
-    headers['X-User-Id'] = String(currentUserId)
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
   }
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -47,13 +55,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch {
       // not JSON, keep the default message
     }
-    throw new Error(message)
+    throw new ApiError(message, res.status)
   }
+  if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
 }
 
-export function listUsers() {
-  return request<User[]>('/api/users')
+export function getMe() {
+  return request<User>('/api/me')
 }
 
 export function listDocuments() {
@@ -90,4 +99,12 @@ export function shareDocument(id: number, email: string) {
     method: 'POST',
     body: JSON.stringify({ email }),
   })
+}
+
+export function deleteDocument(id: number) {
+  return request<void>(`/api/documents/${id}`, { method: 'DELETE' })
+}
+
+export function removeShare(docId: number, userId: number) {
+  return request<void>(`/api/documents/${docId}/shares/${userId}`, { method: 'DELETE' })
 }

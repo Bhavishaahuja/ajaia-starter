@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent, type Editor as TiptapEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import {
+  deleteDocument,
   getDocument,
   listShares,
+  removeShare,
   shareDocument,
   updateDocument,
   type DocFull,
@@ -85,6 +87,18 @@ function SharePanel({ doc, user }: { doc: DocFull; user: User }) {
       .catch((e: Error) => setError(e.message))
   }, [doc.id, isOwner])
 
+  async function handleRemove(share: Share) {
+    setError('')
+    setNote('')
+    try {
+      await removeShare(doc.id, share.user_id)
+      setShares((prev) => prev.filter((s) => s.user_id !== share.user_id))
+      setNote(`${share.name} can no longer open this document.`)
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
   async function handleShare(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -113,7 +127,7 @@ function SharePanel({ doc, user }: { doc: DocFull; user: User }) {
         <input
           type="email"
           required
-          placeholder="ben@example.com"
+          placeholder="colleague@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
@@ -123,15 +137,24 @@ function SharePanel({ doc, user }: { doc: DocFull; user: User }) {
         </button>
       </form>
       <p className="text-xs text-slate-500">
-        Shared people can open and edit. Seed users: ben@example.com, cara@example.com.
+        Shared people can open and edit. They need an account first.
       </p>
       {error && <p className="text-xs text-red-700">{error}</p>}
       {note && <p className="text-xs text-green-700">{note}</p>}
       {shares.length > 0 && (
-        <ul className="text-xs text-slate-600">
+        <ul className="space-y-1 text-xs text-slate-600">
           {shares.map((s) => (
-            <li key={s.user_id}>
-              {s.name} ({s.email}) can edit
+            <li key={s.user_id} className="flex items-center gap-2">
+              <span>
+                {s.name} ({s.email}) can edit
+              </span>
+              <button
+                type="button"
+                onClick={() => handleRemove(s)}
+                className="text-red-700 underline hover:text-red-900"
+              >
+                Remove access
+              </button>
             </li>
           ))}
         </ul>
@@ -145,6 +168,8 @@ export default function Editor({ docId, user, onBack }: Props) {
   const [title, setTitle] = useState('')
   const [saveState, setSaveState] = useState<SaveState>('loading')
   const [loadError, setLoadError] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   // refs so the timer and save function always see the newest values
   const latest = useRef({ title: '', html: '' })
@@ -231,6 +256,24 @@ export default function Editor({ docId, user, onBack }: Props) {
     }
   }, [])
 
+  async function handleDelete() {
+    // first click asks, second click deletes
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      return
+    }
+    setDeleteError('')
+    try {
+      await deleteDocument(docId)
+      dirty.current = false
+      window.clearTimeout(timer.current)
+      onBack()
+    } catch (e) {
+      setDeleteError((e as Error).message)
+      setConfirmDelete(false)
+    }
+  }
+
   function handleTitle(value: string) {
     setTitle(value)
     latest.current.title = value
@@ -264,7 +307,16 @@ export default function Editor({ docId, user, onBack }: Props) {
         >
           Save
         </button>
+        {doc?.role === 'owner' && (
+          <button
+            onClick={() => void handleDelete()}
+            className="rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-50"
+          >
+            {confirmDelete ? 'Click again to delete' : 'Delete'}
+          </button>
+        )}
       </div>
+      {deleteError && <p className="text-sm text-red-700">{deleteError}</p>}
 
       <input
         aria-label="Document title"
