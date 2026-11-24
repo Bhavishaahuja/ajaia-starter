@@ -4,9 +4,12 @@
 .doc-body-content {
   min-height: 360px;
   outline: none;
-  font-size: 0.95rem;
-  line-height: 1.6;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #1e293b;
 }
+.doc-body-content blockquote { border-left: 3px solid #cbd5e1; padding-left: 1rem; color: #475569; margin: 0.6em 0; }
+.doc-body-content p { margin: 0.5em 0; }
 .doc-body-content h1 { font-size: 1.6rem; font-weight: 600; margin: 0.8em 0 0.4em; }
 .doc-body-content h2 { font-size: 1.25rem; font-weight: 600; margin: 0.7em 0 0.3em; }
 .doc-body-content p { margin: 0.4em 0; }

@@ -46,8 +46,8 @@ function ToolButton({
       aria-pressed={active}
       onMouseDown={(e) => e.preventDefault()} // keep the text selection
       onClick={onClick}
-      className={`rounded px-2 py-1 text-sm ${
-        active ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
+      className={`min-w-8 rounded-md px-2 py-1 text-sm transition ${
+        active ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-100'
       }`}
     >
       {label}
@@ -58,7 +58,11 @@ function ToolButton({
 function Toolbar({ editor }: { editor: TiptapEditor }) {
   // the editor rerenders on each change, so these active states stay current
   return (
-    <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-2">
+    <div
+      role="toolbar"
+      aria-label="Formatting"
+      className="sticky top-[118px] z-[5] flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-white/95 p-1 shadow-sm backdrop-blur"
+    >
       <ToolButton label="B" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} />
       <ToolButton label="I" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()} />
       <ToolButton label="U" active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} />
@@ -293,8 +297,9 @@ export default function Editor({ docId, user, onBack }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <button onClick={onBack} className="text-sm text-slate-600 hover:text-slate-900">
+      {/* sticky bar: back link, save status and actions stay in view while you type */}
+      <div className="sticky top-[57px] z-10 -mx-4 flex flex-wrap items-center gap-3 border-b border-slate-200 bg-stone-100/95 px-4 py-2 backdrop-blur">
+        <button onClick={onBack} className="rounded-lg px-2 py-1 text-sm text-slate-600 hover:bg-white hover:text-slate-900">
           ← All documents
         </button>
         <span className="ml-auto text-xs text-slate-500" role="status">
@@ -303,14 +308,14 @@ export default function Editor({ docId, user, onBack }: Props) {
         <button
           onClick={() => void saveRef.current()}
           disabled={!doc || saveState === 'saving' || saveState === 'saved'}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:opacity-40"
         >
           Save
         </button>
         {doc?.role === 'owner' && (
           <button
             onClick={() => void handleDelete()}
-            className="rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-50"
+            className="rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-50"
           >
             {confirmDelete ? 'Click again to delete' : 'Delete'}
           </button>
@@ -318,26 +323,34 @@ export default function Editor({ docId, user, onBack }: Props) {
       </div>
       {deleteError && <p className="text-sm text-red-700">{deleteError}</p>}
 
-      <input
-        aria-label="Document title"
-        value={title}
-        disabled={!doc}
-        onChange={(e) => handleTitle(e.target.value)}
-        onBlur={() => void saveRef.current()}
-        maxLength={200}
-        className="w-full bg-transparent text-2xl font-semibold focus:outline-none"
-      />
+      {/* the page: a centered white sheet with the title on top */}
+      <div className="mx-auto max-w-3xl rounded-xl bg-white px-6 py-8 shadow-sm ring-1 ring-slate-200 sm:px-12 sm:py-10">
+        <input
+          aria-label="Document title"
+          value={title}
+          disabled={!doc}
+          placeholder="Untitled document"
+          onChange={(e) => handleTitle(e.target.value)}
+          onBlur={() => void saveRef.current()}
+          maxLength={200}
+          className="w-full bg-transparent text-3xl font-bold tracking-tight text-slate-900 placeholder:text-slate-300 focus:outline-none"
+        />
 
-      {doc && <SharePanel doc={doc} user={user} />}
-
-      {editor && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <Toolbar editor={editor} />
-          <div className="mt-3">
-            <EditorContent editor={editor} />
+        {doc && (
+          <div className="mt-3 border-b border-slate-100 pb-4">
+            <SharePanel doc={doc} user={user} />
           </div>
-        </div>
-      )}
+        )}
+
+        {editor && (
+          <div className="mt-4">
+            <Toolbar editor={editor} />
+            <div className="mt-4">
+              <EditorContent editor={editor} />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

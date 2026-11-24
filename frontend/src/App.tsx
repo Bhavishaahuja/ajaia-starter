@@ -102,21 +102,26 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-4xl px-4 py-8">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
-          <div>
-            <h1 className="text-xl font-semibold">Docs</h1>
-            <p className="text-xs text-slate-500">
-              Mock login: pick a seeded user. There are no passwords, so this is not real auth.
-            </p>
+    <div className="min-h-screen bg-stone-100 text-slate-900">
+      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white">
+              D
+            </span>
+            <div>
+              <h1 className="text-base font-semibold leading-tight">Docs</h1>
+              <p className="hidden text-xs text-slate-500 md:block">
+                Mock login: pick a seeded user. There are no passwords, so this is not real auth.
+              </p>
+            </div>
           </div>
           <label className="flex items-center gap-2 text-sm">
             <span className="text-slate-600">Signed in as</span>
             <select
               value={userId ?? ''}
               onChange={(e) => switchUser(Number(e.target.value))}
-              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm"
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm shadow-sm"
             >
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
@@ -125,13 +130,15 @@ function App() {
               ))}
             </select>
           </label>
-        </header>
+        </div>
+      </header>
 
+      <div className="mx-auto max-w-6xl px-4 py-6">
         {error && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
         )}
 
-        <main className="mt-6">
+        <main>
           {!currentUser ? (
             <p className="text-sm text-slate-500">Loading users...</p>
           ) : openId !== null ? (
