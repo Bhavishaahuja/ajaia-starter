@@ -115,6 +115,43 @@ test('autosave keeps text without pressing Save', async (page, baseUrl) => {
   assert.match(await editorHtml(page, /autosaved line/), /autosaved line/)
 })
 
+// a fake speech engine, since headless Chrome has no microphone
+const fakeSpeech = () => {
+  window.SpeechRecognition = class {
+    start() {
+      setTimeout(() => {
+        const result = Object.assign([{ transcript: 'dictated words' }], { isFinal: true })
+        this.onresult?.({ resultIndex: 0, results: [result] })
+      }, 200)
+    }
+    stop() {
+      this.onend?.()
+    }
+  }
+  window.webkitSpeechRecognition = window.SpeechRecognition
+}
+
+test('dictation puts recognised speech into the editor', async (page, baseUrl) => {
+  await page.addInitScript(fakeSpeech)
+  await open(page, baseUrl, BEN)
+  await newDocument(page)
+  await page.locator('.ProseMirror').click()
+  await page.getByRole('button', { name: 'Start dictation' }).click()
+  assert.match(await editorHtml(page, /dictated words/), /dictated words/)
+  await page.getByRole('button', { name: 'Stop dictation' }).click()
+})
+
+test('dictation shows a note when the browser has no speech recognition', async (page, baseUrl) => {
+  await page.addInitScript(() => {
+    delete window.SpeechRecognition
+    delete window.webkitSpeechRecognition
+  })
+  await open(page, baseUrl, BEN)
+  await newDocument(page)
+  await page.getByText('Dictation needs Chrome or Edge.').waitFor({ timeout: 10000 })
+  assert.equal(await page.getByRole('button', { name: 'Start dictation' }).count(), 0)
+})
+
 test('import a .txt file as a new document', async (page, baseUrl) => {
   await open(page, baseUrl, BEN)
   const dir = mkdtempSync(path.join(tmpdir(), 'docs-upload-'))

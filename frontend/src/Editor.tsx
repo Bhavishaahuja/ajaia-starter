@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent, type Editor as TiptapEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Dictation from './Dictation'
 import {
   deleteDocument,
   getDocument,
@@ -73,6 +74,8 @@ function Toolbar({ editor }: { editor: TiptapEditor }) {
       <span className="mx-1 w-px bg-slate-200" />
       <ToolButton label="Bullets" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()} />
       <ToolButton label="Numbers" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
+      <span className="mx-1 w-px bg-slate-200" />
+      <Dictation editor={editor} />
     </div>
   )
 }
