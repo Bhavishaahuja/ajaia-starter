@@ -56,7 +56,8 @@ Full steps (Windows cmd and Linux/Mac) are in [README.md](README.md).
 
 ## What is partial
 
-- **Dictation** works only in Chrome and Edge. Other browsers show a note instead.
+- **Dictation** works only in Chrome and Edge. Other browsers show a note instead. It still mishears some words. Cleanup is rule-based, not a language model.
+- OpenWispr was considered, but it is native-only (macOS and Android apps), so it cannot be embedded in a web app.
 - **Markdown export** has no underline, since Markdown cannot show it. Underlined text exports as plain text.
 - **PDF export** depends on the browser print dialog, so the output looks slightly different in each browser.
 - **Version history** snapshots only on manual Save and before a restore. Autosave does not add versions.
@@ -77,4 +78,5 @@ Full steps (Windows cmd and Linux/Mac) are in [README.md](README.md).
 1. Real login (magic link or OAuth), so the user id comes from a session, not a header.
 2. Viewer role, so a shared person can read without editing.
 3. Real-time presence (show who is in the document), then real-time co-editing if time allows.
-4. Alembic migrations, and a version compare view that shows what changed between two snapshots.
+4. Better dictation: on-device Whisper in the browser via transformers.js, so accuracy does not depend on the browser's speech service.
+5. Alembic migrations, and a version compare view that shows what changed between two snapshots.

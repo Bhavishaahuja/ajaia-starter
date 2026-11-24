@@ -16,7 +16,7 @@
 
 ## What I changed or rejected
 
-- Rejected OpenWhispr for dictation. It is a desktop Electron app, so a web app cannot embed it. The browser speech API needs no extra dependency.
+- Rejected OpenWhispr for dictation. Its open-source repo is native-only (macOS and Android), so a web app cannot embed it. The browser speech API needs no extra dependency. Kept the browser API and added a small cleanup pass of our own.
 - Rejected the starter's LLM triage feature. The brief did not need it, and deleted the LLM module, evals and CI env var.
 - Rejected the idea of putting the LLM in the import step. Converting a file is deterministic, and the access checks must be exact.
 - Chose 404 (not 403) for strangers from the first draft, so a stranger cannot tell that a document exists.

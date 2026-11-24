@@ -137,7 +137,8 @@ test('dictation puts recognised speech into the editor', async (page, baseUrl) =
   await newDocument(page)
   await page.locator('.ProseMirror').click()
   await page.getByRole('button', { name: 'Start dictation' }).click()
-  assert.match(await editorHtml(page, /dictated words/), /dictated words/)
+  // the first word is capitalized at the start of a sentence, so match without case
+  assert.match(await editorHtml(page, /dictated words/i), /dictated words/i)
   await page.getByRole('button', { name: 'Stop dictation' }).click()
 })
 
