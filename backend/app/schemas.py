@@ -54,3 +54,15 @@ class ShareOut(BaseModel):
     user_id: int
     email: str
     name: str
+
+
+class VersionOut(BaseModel):
+    # one row in the version list, newest first
+    id: int
+    title: str
+    created_by_name: str
+    created_at: datetime
+
+
+class VersionFull(VersionOut):
+    html: str

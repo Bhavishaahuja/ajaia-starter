@@ -183,6 +183,30 @@ test('export as Markdown download, and PDF opens the print dialog', async (page,
   await waitUntil(async () => (await page.evaluate(() => window.__printed)) === 1, 'print dialog opened once')
 })
 
+test('save keeps versions, and restore brings an older one back', async (page, baseUrl) => {
+  await open(page, baseUrl, BEN)
+  await newDocument(page)
+  await page.locator('.ProseMirror').click()
+  await page.keyboard.type('first draft')
+  await waitStatus(page, 'All changes saved')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+
+  await page.getByRole('button', { name: 'Show version history' }).click()
+  await page.getByText('by Ben Ortiz').first().waitFor({ timeout: 10000 })
+
+  await page.locator('.ProseMirror').click()
+  await page.keyboard.press('End')
+  await page.keyboard.type(' second draft')
+  await waitStatus(page, 'All changes saved')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await waitUntil(async () => (await page.getByRole('button', { name: 'Restore' }).count()) === 2, 'two versions')
+
+  // the list is newest first, so the second Restore is the first draft
+  await page.getByRole('button', { name: 'Restore' }).nth(1).click()
+  const html = await editorHtml(page, /first draft/)
+  assert.doesNotMatch(html, /second draft/)
+})
+
 test('import a .txt file as a new document', async (page, baseUrl) => {
   await open(page, baseUrl, BEN)
   const dir = mkdtempSync(path.join(tmpdir(), 'docs-upload-'))

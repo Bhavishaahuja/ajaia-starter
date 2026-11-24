@@ -9,9 +9,18 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import Base, SessionLocal, engine, get_db
 from app.importer import UploadError, html_from_upload, sanitize_html
-from app.models import Document, Share, User
+from app.models import Document, DocVersion, Share, User
 from app.rules import can_share, role_for
-from app.schemas import DocCreate, DocOut, DocSummary, DocUpdate, ShareCreate, ShareOut, UserOut
+from app.schemas import (
+    DocCreate,
+    DocOut,
+    DocSummary,
+    DocUpdate,
+    ShareCreate,
+    ShareOut,
+    UserOut,
+    VersionOut,
+)
 from app.seed import SEED_USERS, seed_users
 
 logging.basicConfig(level=logging.INFO)
@@ -237,9 +246,70 @@ def delete_document(doc_id: int, user: User = Depends(current_user), db: Session
         raise HTTPException(status_code=403, detail="Only the owner can delete this document.")
     # drop the share rows first, then the document
     db.execute(delete(Share).where(Share.doc_id == doc.id))
+    db.execute(delete(DocVersion).where(DocVersion.doc_id == doc.id))
     db.delete(doc)
     db.commit()
     return Response(status_code=204)
+
+
+def snapshot(db: Session, doc: Document, user: User) -> DocVersion:
+    # no new row if nothing changed since the last snapshot
+    last = db.scalar(
+        select(DocVersion).where(DocVersion.doc_id == doc.id).order_by(DocVersion.id.desc()).limit(1)
+    )
+    if last is not None and last.title == doc.title and last.html == doc.html:
+        return last
+    version = DocVersion(doc_id=doc.id, title=doc.title, html=doc.html, created_by_id=user.id)
+    db.add(version)
+    db.commit()
+    db.refresh(version)
+    return version
+
+
+def version_out(db: Session, version: DocVersion) -> VersionOut:
+    author = db.get(User, version.created_by_id)
+    return VersionOut(
+        id=version.id,
+        title=version.title,
+        created_by_name=author.name if author else "Unknown",
+        created_at=version.created_at,
+    )
+
+
+# owners and editors can see and restore versions. Strangers get the usual 404.
+@app.get("/api/documents/{doc_id}/versions", response_model=list[VersionOut])
+def list_versions(doc_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    load_doc_for(doc_id, user, db)
+    rows = db.scalars(
+        select(DocVersion).where(DocVersion.doc_id == doc_id).order_by(DocVersion.id.desc())
+    ).all()
+    return [version_out(db, v) for v in rows]
+
+
+@app.post("/api/documents/{doc_id}/versions", response_model=VersionOut, status_code=201)
+def save_version(doc_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    doc, _ = load_doc_for(doc_id, user, db)
+    return version_out(db, snapshot(db, doc, user))
+
+
+@app.post("/api/documents/{doc_id}/versions/{version_id}/restore", response_model=DocOut)
+def restore_version(
+    doc_id: int,
+    version_id: int,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    doc, role = load_doc_for(doc_id, user, db)
+    version = db.get(DocVersion, version_id)
+    if version is None or version.doc_id != doc.id:
+        raise HTTPException(status_code=404, detail="Version not found.")
+    # save the current state first, so the restore can be undone
+    snapshot(db, doc, user)
+    doc.title = version.title
+    doc.html = version.html
+    db.commit()
+    db.refresh(doc)
+    return doc_out(doc, role, owner_name_of(db, doc.owner_id))
 
 
 @app.delete("/api/documents/{doc_id}/shares/{user_id}", status_code=204)

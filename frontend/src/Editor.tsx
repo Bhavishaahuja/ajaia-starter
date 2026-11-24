@@ -7,12 +7,16 @@ import {
   deleteDocument,
   getDocument,
   listShares,
+  listVersions,
   removeShare,
+  restoreVersion,
+  saveVersion,
   shareDocument,
   updateDocument,
   type DocFull,
   type Share,
   type User,
+  type Version,
 } from './api'
 
 type Props = {
@@ -171,6 +175,70 @@ function SharePanel({ doc, user }: { doc: DocFull; user: User }) {
   )
 }
 
+// the version list is loaded only when opened, so the page stays light
+function VersionPanel({
+  docId,
+  versionsKey,
+  onRestore,
+}: {
+  docId: number
+  versionsKey: number
+  onRestore: (versionId: number) => Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const [versions, setVersions] = useState<Version[]>([])
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!open) return
+    listVersions(docId)
+      .then(setVersions)
+      .catch((e: Error) => setError(e.message))
+  }, [docId, versionsKey, open])
+
+  async function restore(id: number) {
+    setError('')
+    try {
+      await onRestore(id)
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
+  return (
+    <div className="mt-6 border-t border-slate-100 pt-4">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="text-sm text-slate-600 underline hover:text-slate-900"
+      >
+        {open ? 'Hide version history' : 'Show version history'}
+      </button>
+      {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
+      {open &&
+        (versions.length === 0 ? (
+          <p className="mt-2 text-xs text-slate-500">No saved versions yet. Press Save to keep one.</p>
+        ) : (
+          <ul className="mt-2 space-y-1 text-sm">
+            {versions.map((v) => (
+              <li key={v.id} className="flex flex-wrap items-center gap-2">
+                <span className="text-slate-700">{new Date(v.created_at).toLocaleString()}</span>
+                <span className="text-xs text-slate-500">by {v.created_by_name}</span>
+                <button
+                  type="button"
+                  onClick={() => void restore(v.id)}
+                  className="text-xs text-slate-700 underline hover:text-slate-900"
+                >
+                  Restore
+                </button>
+              </li>
+            ))}
+          </ul>
+        ))}
+    </div>
+  )
+}
+
 export default function Editor({ docId, user, onBack }: Props) {
   const [doc, setDoc] = useState<DocFull | null>(null)
   const [title, setTitle] = useState('')
@@ -178,6 +246,8 @@ export default function Editor({ docId, user, onBack }: Props) {
   const [loadError, setLoadError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  // bumped after each save or restore so the version list reloads
+  const [versionsKey, setVersionsKey] = useState(0)
   // set when the user picks PDF; the print area fills, then the print dialog opens
   const [printHtml, setPrintHtml] = useState<string | null>(null)
 
@@ -232,6 +302,32 @@ export default function Editor({ docId, user, onBack }: Props) {
     }
   }
 
+  // a manual save also keeps a version. The server skips it if nothing changed.
+  async function manualSave() {
+    await saveRef.current()
+    try {
+      await saveVersion(docId)
+      setVersionsKey((k) => k + 1)
+    } catch {
+      // the save itself went through, so skip the version quietly
+    }
+  }
+  const manualSaveRef = useRef<() => Promise<void>>(async () => {})
+  manualSaveRef.current = manualSave
+
+  // restore: flush edits first, then show the version. The server keeps the current state too.
+  async function handleRestore(versionId: number) {
+    await saveRef.current()
+    const restored = await restoreVersion(docId, versionId)
+    window.clearTimeout(timer.current)
+    dirty.current = false
+    setTitle(restored.title)
+    latest.current = { title: restored.title, html: restored.html }
+    editor?.commands.setContent(restored.html, { emitUpdate: false })
+    setSaveState('saved')
+    setVersionsKey((k) => k + 1)
+  }
+
   // load the doc once the editor exists
   useEffect(() => {
     getDocument(docId)
@@ -257,7 +353,7 @@ export default function Editor({ docId, user, onBack }: Props) {
     function onKey(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault()
-        void saveRef.current()
+        void manualSaveRef.current()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -332,8 +428,8 @@ export default function Editor({ docId, user, onBack }: Props) {
           PDF
         </button>
         <button
-          onClick={() => void saveRef.current()}
-          disabled={!doc || saveState === 'saving' || saveState === 'saved'}
+          onClick={() => void manualSaveRef.current()}
+          disabled={!doc || saveState === 'saving'}
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:opacity-40"
         >
           Save
@@ -376,6 +472,7 @@ export default function Editor({ docId, user, onBack }: Props) {
             </div>
           </div>
         )}
+        {doc && <VersionPanel docId={docId} versionsKey={versionsKey} onRestore={handleRestore} />}
       </div>
 
       {/* hidden on screen, shown only when printing to PDF */}
