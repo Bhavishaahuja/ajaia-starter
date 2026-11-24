@@ -35,7 +35,9 @@ Test flow: sign in as Ava, create a doc, share it with ben@example.com, switch t
 - Share by email. Owned and shared sections are separate.
 - Server-side access checks on every document route
 - Sanitized HTML on save and import
-- 18 pytest tests pass. Lint and production build pass.
+- 23 pytest tests pass. Lint and production build pass.
+- 7 Playwright browser tests cover the full flow with seeded users (`npm run e2e`).
+- Owner can delete a document and remove a shared person's access.
 
 ## Partial
 
@@ -44,7 +46,7 @@ Test flow: sign in as Ava, create a doc, share it with ben@example.com, switch t
 
 ## Cut
 
-- Real login (mock header only)
+- Real login. Mock login with seeded users only, as the brief allows.
 - Real-time co-editing and presence
 - Comments and suggestions
 - Version history

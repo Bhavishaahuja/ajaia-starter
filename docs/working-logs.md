@@ -38,3 +38,8 @@ Commit after every working step. Messages like:
 - `[prep] Structured JSON | forced tool_choice vs structured outputs | structured outputs (messages.parse + Pydantic) | Claude Opus 5.5 returns 400 on forced tool_choice, found while building the starter`
 - `[prep] LLM in tests | real API vs fake client | fake client + LLM_MODE=mock | tests and CI run with no key and no cost`
 - `[prep] Review gate | LLM decides vs rules decide | rules in app/rules.py | rules can only add review, never remove it`
+
+
+## Decision log
+
+- **Auth: Supabase sign-in reverted to mock login with seeded users.** Supabase sign-in was built and merged in PR #4, then reverted at Bhavisha's request so the basics could be checked first. The app again uses seeded users (Ava, Ben, Cara) and an `X-User-Id` header. The Supabase code is gone. Still in place: Postgres via `DATABASE_URL`, owner delete, remove access, and the CI checks.

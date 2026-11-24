@@ -25,11 +25,11 @@ export type DocFull = DocSummary & { html: string }
 
 export type Share = { user_id: number; email: string; name: string }
 
-// Supabase access token from the login. Sent as a Bearer token on every call.
-let accessToken: string | null = null
+// mock auth: the chosen seed user's id goes in a header. Not real login.
+let currentUserId: number | null = null
 
-export function setAccessToken(token: string | null) {
-  accessToken = token
+export function setCurrentUser(id: number | null) {
+  currentUserId = id
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -38,8 +38,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json'
   }
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`
+  if (currentUserId !== null) {
+    headers['X-User-Id'] = String(currentUserId)
   }
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -61,8 +61,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>
 }
 
-export function getMe() {
-  return request<User>('/api/me')
+export function listUsers() {
+  return request<User[]>('/api/users')
 }
 
 export function listDocuments() {
