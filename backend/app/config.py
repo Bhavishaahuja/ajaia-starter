@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     # comma separated list of frontend origins allowed by CORS
     cors_origins: str = "http://localhost:5173"
 
+    # Supabase Auth. The publishable key is safe to expose, it is not a secret.
+    supabase_url: str = ""
+    supabase_publishable_key: str = ""
+
     # uploads over this size get a 413
     max_upload_bytes: int = 2 * 1024 * 1024
 

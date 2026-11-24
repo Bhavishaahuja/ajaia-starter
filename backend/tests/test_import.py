@@ -1,14 +1,14 @@
 import io
 import zipfile
 
-from tests.test_access import AVA, as_user
+from tests.test_access import auth, sign_in
 
 
-def upload(client, user_id, filename, data, content_type="application/octet-stream"):
+def upload(client, token, filename, data, content_type="application/octet-stream"):
     return client.post(
         "/api/documents/import",
         files={"file": (filename, data, content_type)},
-        headers=as_user(user_id),
+        headers=auth(token),
     )
 
 
@@ -46,8 +46,8 @@ def make_docx(paragraph_text):
     return buffer.getvalue()
 
 
-def test_txt_becomes_new_document_with_escaped_text(client, ids):
-    ava = ids[AVA]
+def test_txt_becomes_new_document_with_escaped_text(client):
+    ava = "tok-ava"
     text = "Plan for Q3\n\nFirst line\nsecond line\n\n<script>alert(1)</script>"
     res = upload(client, ava, "plan.txt", text.encode("utf-8"), "text/plain")
     assert res.status_code == 201
@@ -61,8 +61,8 @@ def test_txt_becomes_new_document_with_escaped_text(client, ids):
     assert "<script" not in body["html"]
 
 
-def test_md_is_converted_and_sanitized(client, ids):
-    ava = ids[AVA]
+def test_md_is_converted_and_sanitized(client):
+    ava = "tok-ava"
     text = "# Roadmap\n\n- ship sharing\n- ship import\n\n<script>bad()</script>\n\n[ok](https://example.com)"
     res = upload(client, ava, "roadmap.md", text.encode("utf-8"))
     assert res.status_code == 201
@@ -73,8 +73,8 @@ def test_md_is_converted_and_sanitized(client, ids):
     assert 'href="https://example.com"' in html
 
 
-def test_docx_text_comes_through(client, ids):
-    ava = ids[AVA]
+def test_docx_text_comes_through(client):
+    ava = "tok-ava"
     res = upload(client, ava, "memo.docx", make_docx("Hello from Word"))
     assert res.status_code == 201
     body = res.json()
@@ -82,24 +82,24 @@ def test_docx_text_comes_through(client, ids):
     assert "Hello from Word" in body["html"]
 
 
-def test_unsupported_extension_is_415(client, ids):
-    res = upload(client, ids[AVA], "photo.png", b"not really a png")
+def test_unsupported_extension_is_415(client):
+    res = upload(client, "tok-ava", "photo.png", b"not really a png")
     assert res.status_code == 415
 
 
-def test_file_over_2mb_is_413(client, ids):
+def test_file_over_2mb_is_413(client):
     too_big = b"a" * (2 * 1024 * 1024 + 1)
-    res = upload(client, ids[AVA], "big.txt", too_big, "text/plain")
+    res = upload(client, "tok-ava", "big.txt", too_big, "text/plain")
     assert res.status_code == 413
 
 
-def test_broken_docx_is_422(client, ids):
-    res = upload(client, ids[AVA], "broken.docx", b"this is not a zip file")
+def test_broken_docx_is_422(client):
+    res = upload(client, "tok-ava", "broken.docx", b"this is not a zip file")
     assert res.status_code == 422
 
 
-def test_non_utf8_text_is_422(client, ids):
-    res = upload(client, ids[AVA], "latin.txt", "caf\xe9".encode("latin-1"), "text/plain")
+def test_non_utf8_text_is_422(client):
+    res = upload(client, "tok-ava", "latin.txt", "caf\xe9".encode("latin-1"), "text/plain")
     assert res.status_code == 422
 
 

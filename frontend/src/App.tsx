@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { listDocuments, listUsers, setCurrentUser, type DocSummary, type User } from './api'
+import { ApiError, getMe, listDocuments, setAccessToken, type DocSummary, type User } from './api'
 import DocumentList from './DocumentList'
 import Editor from './Editor'
+import Login from './Login'
 
-const USER_KEY = 'docEditorUserId'
+const TOKEN_KEY = 'docEditorToken'
 
 // the open document lives in the URL hash, so a refresh stays on the same doc
 function docIdFromHash(): number | null {
@@ -11,66 +12,72 @@ function docIdFromHash(): number | null {
   return match ? Number(match[1]) : null
 }
 
-function readSavedUserId(): number | null {
+function readToken(): string | null {
   try {
-    const raw = window.localStorage.getItem(USER_KEY)
-    return raw ? Number(raw) : null
+    return window.localStorage.getItem(TOKEN_KEY)
   } catch {
-    // private window or blocked storage, just start with the first user
+    // private window or blocked storage, the user just signs in again
     return null
   }
 }
 
-function saveUserId(id: number) {
+function writeToken(token: string | null) {
   try {
-    window.localStorage.setItem(USER_KEY, String(id))
+    if (token) window.localStorage.setItem(TOKEN_KEY, token)
+    else window.localStorage.removeItem(TOKEN_KEY)
   } catch {
-    // ignore, the switcher still works for this page
+    // ignore, the login still works for this page
   }
 }
 
 function App() {
-  const [users, setUsers] = useState<User[]>([])
-  const [userId, setUserId] = useState<number | null>(readSavedUserId)
+  const [token, setToken] = useState<string | null>(readToken)
+  const [me, setMe] = useState<User | null>(null)
   const [docs, setDocs] = useState<DocSummary[]>([])
   const [openId, setOpenId] = useState<number | null>(docIdFromHash)
   const [error, setError] = useState('')
   const [loadingDocs, setLoadingDocs] = useState(false)
 
-  const currentUser = users.find((u) => u.id === userId) ?? null
+  function signOut() {
+    writeToken(null)
+    setAccessToken(null)
+    setToken(null)
+    setMe(null)
+    setDocs([])
+    window.location.hash = ''
+    setOpenId(null)
+  }
 
-  // users first, the switcher needs them
+  // every API call sends the token. A bad or expired token signs the user out.
   useEffect(() => {
-    listUsers()
-      .then((list) => {
-        setUsers(list)
-        setUserId((prev) => (prev && list.some((u) => u.id === prev) ? prev : (list[0]?.id ?? null)))
+    setAccessToken(token)
+    if (!token) return
+    getMe()
+      .then(setMe)
+      .catch((e: Error) => {
+        if (e instanceof ApiError && e.status === 401) signOut()
+        else setError(`Could not reach the server: ${e.message}`)
       })
-      .catch((e: Error) => setError(`Could not load users: ${e.message}`))
-  }, [])
-
-  // every API call sends the chosen user's id
-  useEffect(() => {
-    setCurrentUser(userId)
-    if (userId !== null) saveUserId(userId)
-  }, [userId])
+    // signOut is a plain function that only uses setters, so it is safe here
+  }, [token])
 
   const refreshDocs = useCallback(async () => {
-    if (userId === null) return
+    if (!token) return
     setLoadingDocs(true)
     try {
       setDocs(await listDocuments())
       setError('')
     } catch (e) {
-      setError(`Could not load documents: ${(e as Error).message}`)
+      if (e instanceof ApiError && e.status === 401) signOut()
+      else setError(`Could not load documents: ${(e as Error).message}`)
     } finally {
       setLoadingDocs(false)
     }
-  }, [userId])
+  }, [token])
 
   useEffect(() => {
-    void refreshDocs()
-  }, [refreshDocs])
+    if (me) void refreshDocs()
+  }, [me, refreshDocs])
 
   // back and forward buttons, and links that change the hash
   useEffect(() => {
@@ -93,12 +100,9 @@ function App() {
     void refreshDocs()
   }
 
-  function switchUser(id: number) {
-    // the list reloads by itself when userId changes, so no refresh here.
-    // A refresh here would still send the old user's id.
-    setUserId(id)
-    window.location.hash = ''
-    setOpenId(null)
+  function handleSignedIn(newToken: string) {
+    writeToken(newToken)
+    setToken(newToken)
   }
 
   return (
@@ -107,24 +111,13 @@ function App() {
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
           <div>
             <h1 className="text-xl font-semibold">Docs</h1>
-            <p className="text-xs text-slate-500">
-              Mock login: pick a seeded user below. There are no passwords, so this is not real auth.
-            </p>
+            {me && <p className="text-xs text-slate-500">Signed in as {me.email}</p>}
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-slate-600">Signed in as</span>
-            <select
-              value={userId ?? ''}
-              onChange={(e) => switchUser(Number(e.target.value))}
-              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm"
-            >
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {me && (
+            <button onClick={signOut} className="text-sm text-slate-600 underline hover:text-slate-900">
+              Sign out
+            </button>
+          )}
         </header>
 
         {error && (
@@ -132,10 +125,14 @@ function App() {
         )}
 
         <main className="mt-6">
-          {!currentUser ? (
-            <p className="text-sm text-slate-500">Loading users...</p>
+          {!token || !me ? (
+            token ? (
+              <p className="text-sm text-slate-500">Signing in...</p>
+            ) : (
+              <Login onSignedIn={handleSignedIn} />
+            )
           ) : openId !== null ? (
-            <Editor key={`${currentUser.id}-${openId}`} docId={openId} user={currentUser} onBack={closeDoc} />
+            <Editor key={`${me.id}-${openId}`} docId={openId} user={me} onBack={closeDoc} />
           ) : loadingDocs && docs.length === 0 ? (
             <p className="text-sm text-slate-500">Loading documents...</p>
           ) : (

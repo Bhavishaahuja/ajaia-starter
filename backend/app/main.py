@@ -1,18 +1,18 @@
 import logging
-from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Response, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import auth
+from app.auth import verify_token
 from app.config import get_settings
-from app.db import Base, SessionLocal, engine, get_db
+from app.db import Base, engine, get_db
 from app.importer import UploadError, html_from_upload, sanitize_html
 from app.models import Document, Share, User
 from app.rules import can_share, role_for
 from app.schemas import DocCreate, DocOut, DocSummary, DocUpdate, ShareCreate, ShareOut, UserOut
-from app.seed import seed_users
 
 logging.basicConfig(level=logging.INFO)
 settings = get_settings()
@@ -20,36 +20,35 @@ settings = get_settings()
 # fine for a take-home. With more time: Alembic migrations.
 Base.metadata.create_all(bind=engine)
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    with SessionLocal() as db:
-        seed_users(db)
-    yield
-
-
-app = FastAPI(title="Collaborative doc editor API", lifespan=lifespan)
+app = FastAPI(title="Collaborative doc editor API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
     allow_methods=["GET", "POST", "PATCH"],
-    allow_headers=["Content-Type", "X-User-Id"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
-# --- mock auth -------------------------------------------------------------
-# The frontend sends the chosen seed user's id in X-User-Id. This is not real
-# auth. Anyone can send any id. It exists so reviewers can switch users.
+# --- auth ------------------------------------------------------------------
+# The browser logs in with Supabase and sends the access token as a Bearer
+# token. We ask Supabase who that is, then match the email to a local user row.
 
 def current_user(
-    x_user_id: int | None = Header(default=None),
+    authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ) -> User:
-    if x_user_id is None:
-        raise HTTPException(status_code=401, detail="Pick a user first.")
-    user = db.get(User, x_user_id)
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Sign in first.")
+    token = authorization[7:].strip()
+    account = auth.verify_token(token)
+
+    user = db.scalar(select(User).where(User.email == account.email))
     if user is None:
-        raise HTTPException(status_code=401, detail="Unknown user.")
+        # first login creates the local row that documents point at
+        user = User(email=account.email, name=account.name)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
     return user
 
 
@@ -92,10 +91,10 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/api/users", response_model=list[UserOut])
-def list_users(db: Session = Depends(get_db)):
-    # public on purpose, the switcher needs it before anyone picks a user
-    return db.scalars(select(User).order_by(User.id)).all()
+@app.get("/api/me", response_model=UserOut)
+def me(user: User = Depends(current_user)):
+    # the frontend calls this after login. It also creates the local user row.
+    return user
 
 
 @app.get("/api/documents", response_model=list[DocSummary])
@@ -208,11 +207,12 @@ def share_document(
     if not can_share(role):
         raise HTTPException(status_code=403, detail="Only the owner can share this document.")
 
+    # only people who have signed in once have a row to share with
     target = db.scalar(select(User).where(User.email == payload.email))
     if target is None:
         raise HTTPException(
             status_code=404,
-            detail="No user with that email. Try ben@example.com or cara@example.com.",
+            detail="No account with that email yet. They need to create an account first.",
         )
     if target.id == doc.owner_id:
         raise HTTPException(status_code=422, detail="You already own this document.")
