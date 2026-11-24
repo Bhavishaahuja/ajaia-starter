@@ -1,16 +1,19 @@
-"""Deterministic rules. Anything exact or risky lives here, not in the LLM."""
+"""Deterministic access rules. No LLM in here, on purpose."""
 
-from app.schemas import Analysis
+from typing import Literal
 
-CONFIDENCE_FLOOR = 0.7
+Role = Literal["owner", "editor"]
 
 
-def needs_human_review(analysis: Analysis) -> bool:
-    # rules can only add review, never remove it
-    if analysis.confidence < CONFIDENCE_FLOOR:
-        return True
-    if analysis.category in ("billing", "other"):
-        return True
-    if analysis.priority == "high":
-        return True
-    return False
+def role_for(owner_id: int, user_id: int, has_share: bool) -> Role | None:
+    # owner wins, a share row gives edit access, anyone else gets nothing
+    if owner_id == user_id:
+        return "owner"
+    if has_share:
+        return "editor"
+    return None
+
+
+def can_share(role: Role | None) -> bool:
+    # only the owner manages who has access
+    return role == "owner"

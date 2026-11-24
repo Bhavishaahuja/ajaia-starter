@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -10,23 +10,33 @@ def utc_now():
     return datetime.now(timezone.utc)
 
 
-class Item(Base):
-    """Example record. Rename and reshape for the real task."""
-
-    __tablename__ = "items"
+class User(Base):
+    __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    text: Mapped[str] = mapped_column(Text)
+    email: Mapped[str] = mapped_column(String(255), unique=True)
+    name: Mapped[str] = mapped_column(String(100))
 
-    # filled by the LLM step
-    summary: Mapped[str] = mapped_column(Text, default="")
-    category: Mapped[str] = mapped_column(String(50), default="other")
-    priority: Mapped[str] = mapped_column(String(20), default="medium")
-    confidence: Mapped[float] = mapped_column(Float, default=0.0)
-    reasons: Mapped[list] = mapped_column(JSON, default=list)
 
-    # filled by deterministic rules + a human
-    needs_review: Mapped[bool] = mapped_column(Boolean, default=True)
-    review_status: Mapped[str] = mapped_column(String(20), default="pending")
+class Document(Base):
+    __tablename__ = "documents"
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    title: Mapped[str] = mapped_column(String(200), default="Untitled document")
+    # sanitized HTML from the TipTap editor
+    html: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+
+class Share(Base):
+    # one row per (document, user) that the owner shared with
+    __tablename__ = "shares"
+    __table_args__ = (UniqueConstraint("doc_id", "user_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    doc_id: Mapped[int] = mapped_column(ForeignKey("documents.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)

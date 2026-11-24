@@ -8,14 +8,6 @@ services:
     plan: free
     healthCheckPath: /health
     envVars:
-      - key: LLM_MODE
-        value: live
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: LLM_MODEL
-        value: claude-opus-5-5
-      - key: LLM_EFFORT
-        value: low
       - key: CORS_ORIGINS
         sync: false
       - key: DATABASE_URL
