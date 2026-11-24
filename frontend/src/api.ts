@@ -1,24 +1,41 @@
-// All backend calls live here so the real task only changes one file.
+// All backend calls live here. Screens import from this file only.
 
 const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
 
-export type Item = {
+export type User = { id: number; email: string; name: string }
+
+export type DocSummary = {
   id: number
-  text: string
-  summary: string
-  category: string
-  priority: 'low' | 'medium' | 'high'
-  confidence: number
-  reasons: string[]
-  needs_review: boolean
-  review_status: string
-  created_at: string
+  title: string
+  owner_id: number
+  owner_name: string
+  role: 'owner' | 'editor'
+  updated_at: string
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+export type DocFull = DocSummary & { html: string }
+
+export type Share = { user_id: number; email: string; name: string }
+
+// mock auth: the chosen seed user's id goes in a header. Not real login.
+let currentUserId: number | null = null
+
+export function setCurrentUser(id: number | null) {
+  currentUserId = id
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers: Record<string, string> = {}
+  // FormData sets its own content type, so only send JSON when it is not FormData
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json'
+  }
+  if (currentUserId !== null) {
+    headers['X-User-Id'] = String(currentUserId)
+  }
   const res = await fetch(`${API_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: { ...headers, ...(options.headers as Record<string, string> | undefined) },
   })
   if (!res.ok) {
     // FastAPI puts the message in detail (string, or a list for 422s)
@@ -35,17 +52,42 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
-export function listItems() {
-  return request<Item[]>('/api/items')
+export function listUsers() {
+  return request<User[]>('/api/users')
 }
 
-export function createItem(text: string) {
-  return request<Item>('/api/items', { method: 'POST', body: JSON.stringify({ text }) })
+export function listDocuments() {
+  return request<DocSummary[]>('/api/documents')
 }
 
-export function reviewItem(id: number, status: 'approved' | 'rejected') {
-  return request<Item>(`/api/items/${id}/review`, {
+export function createDocument(title: string) {
+  return request<DocFull>('/api/documents', { method: 'POST', body: JSON.stringify({ title }) })
+}
+
+export function getDocument(id: number) {
+  return request<DocFull>(`/api/documents/${id}`)
+}
+
+export function updateDocument(id: number, changes: { title?: string; html?: string }) {
+  return request<DocFull>(`/api/documents/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ status }),
+    body: JSON.stringify(changes),
+  })
+}
+
+export function importDocument(file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  return request<DocFull>('/api/documents/import', { method: 'POST', body: form })
+}
+
+export function listShares(id: number) {
+  return request<Share[]>(`/api/documents/${id}/shares`)
+}
+
+export function shareDocument(id: number, email: string) {
+  return request<Share>(`/api/documents/${id}/shares`, {
+    method: 'POST',
+    body: JSON.stringify({ email }),
   })
 }
