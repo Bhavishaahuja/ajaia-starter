@@ -29,8 +29,8 @@ Commit after every working step. Messages like:
 - `docs: readme + run steps`
 
 ## Checkpoint notes
-- 60:
-- 120:
+- 60 (18:48 UTC): PR #4 with Supabase sign-in merged, then reverted by PR #5 at 18:40 on request. Render deploy failing on the https DATABASE_URL, guard added. Playwright suite at 7 tests.
+- 120 (19:48 UTC): PR #8 dictation merged with CI green. PR #9 export open with CI running. Delete, remove access, live check and import all passed on the live site.
 - 170:
 - 200:
 
@@ -49,3 +49,8 @@ Commit after every working step. Messages like:
 - 2026-11-24 19:55 UTC. Export: Markdown via turndown (underline is dropped, since Markdown has no underline). PDF uses the browser print dialog (Save as PDF), not a PDF library, to save time and keep the bundle small.
 
 - 2026-11-24 20:03 UTC. Versions: a snapshot on each manual Save (skipped if nothing changed) and before each restore, so a restore can be undone. Only owners and editors see the history. Versions are deleted with their document. Kept to one table and three endpoints, to fit the time left.
+
+## Start
+- Start: 2026-11-24 17:48 UTC. Deadline: 21:48 UTC. Feature freeze: 21:08 UTC.
+
+- 2026-11-24 20:10 UTC. Security self-review, about 10 minutes. Checked: sanitizer on import and every write, access checks on every doc, share and version route, upload size and type, CORS origins, secrets in the repo, and leftover LLM code. No high-severity issue found, so no code change. Known limits left in place: mock X-User-Id header, public user list, print area uses the editor's own output (already sanitized on save).
