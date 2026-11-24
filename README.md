@@ -9,7 +9,7 @@ Built as an Ajaia take-home. Scope and tradeoffs are in [ARCHITECTURE.md](ARCHIT
 | Backend | Python 3.12, FastAPI, Pydantic, SQLAlchemy (SQLite locally, Postgres via `DATABASE_URL`) |
 | Import | mammoth (.docx), markdown (.md), plain text escaping (.txt), nh3 (HTML sanitizing) |
 | Frontend | React 19, Vite, TypeScript, Tailwind 4, TipTap 3 editor |
-| Tests | pytest, 18 tests, no network |
+| Tests | pytest, 30 tests, no network. Playwright, 11 browser tests |
 | Deploy | Render (backend, Docker, `render.yaml`), Vercel (frontend, `vercel.json`) |
 
 ## Features
@@ -20,6 +20,10 @@ Built as an Ajaia take-home. Scope and tradeoffs are in [ARCHITECTURE.md](ARCHIT
 - Import a `.txt`, `.md` or `.docx` file. It opens as a new document. **Limit: 2 MB.**
 - Share a document by email. The shared person can open and edit it.
 - Two sections on the home screen: owned by you, and shared with you
+- Version history: each manual Save keeps a snapshot. Owners and editors can restore an older one.
+- Dictation: the mic button in the editor inserts speech as text (Chrome or Edge).
+- Export: download as Markdown, or print to PDF from the browser dialog.
+- Owner can remove a shared person's access and delete a document.
 - Switch between three seeded users with the "Signed in as" dropdown
 
 ## Mock login (read this first)
@@ -94,6 +98,9 @@ The tests cover:
 - Sharing with an unknown email, sharing with yourself, and sharing twice
 - Saved HTML is sanitized (no scripts, no `onclick`, no `javascript:` links)
 - Import of `.txt`, `.md` and a hand-built `.docx`, plus the 415, 413 and 422 error cases
+- Version history: snapshots on save, no duplicate when nothing changed, newest first with authors, restore (and undo through the saved current state), and delete with the document
+
+The Playwright tests cover the whole flow with seeded users, including dictation (with a fake speech engine), export and print, versions, import, sharing and removing access.
 
 ## Deploy
 
@@ -116,6 +123,8 @@ backend/app/seed.py       the three seeded users
 backend/tests/            pytest
 frontend/src/App.tsx      user switcher, open document in the URL hash
 frontend/src/DocumentList.tsx   owned and shared lists, new, import
-frontend/src/Editor.tsx   TipTap editor, toolbar, autosave, share panel
+frontend/src/Editor.tsx   TipTap editor, toolbar, autosave, share panel, version history
+frontend/src/Dictation.tsx   mic button, browser speech API
+frontend/src/exportDoc.ts   Markdown export (turndown) and print helper
 frontend/src/api.ts       every backend call
 ```

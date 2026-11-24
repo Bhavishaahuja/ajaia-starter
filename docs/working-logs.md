@@ -4,22 +4,33 @@ These feed sections 5 and 6 of the submission. One line per entry is plenty. Wri
 
 ## Decision Log
 Format: `[min] Decision | options | picked | why`
-- [ ] 
-- [ ] 
+(min = minutes after the 17:48 UTC start)
 
-Examples:
-- `[25] Storage | Postgres on Supabase vs SQLite | SQLite | saves ~15 min setup, swap is one env var`
-- `[90] Output parsing | regex on text vs forced tool use | tool use | schema-validated JSON, no parsing bugs`
+- [24] Login | real login (Supabase) vs mock login with seeded users | Supabase first, reverted to mock at [52] | Supabase sign-in was merged in PR #4. The user asked to revert so the basics could be checked first (PR #5). The brief allows mock login.
+- [84] Database URL | web URL vs Postgres URI in DATABASE_URL | refuse a web URL at startup with a clear message, and check it in CI | Render deploy crashed on the Supabase project URL. The startup guard and the CI boot check stop the same mistake before deploy.
+- [55] Editor layout | keep the first layout vs redesign | redesign (PR #6) | a centered page, sticky action bar and grouped toolbar read more like a document editor. Handlers and labels stayed the same, so tests kept passing.
+- [100] Home page | plain list vs hero, stats and colored cards | hero and cards (PR #7) | makes owned and shared documents easy to scan. Only classes and markup changed.
+- [115] Dictation | OpenWhispr vs browser speech API | browser speech API (PR #8) | OpenWhispr is a desktop Electron app and cannot be embedded in a web app. The browser API needs no extra dependency. Works in Chrome and Edge, with a note elsewhere.
+- [118] Export | PDF library vs browser print dialog; Markdown via turndown | print dialog for PDF, turndown for Markdown (PR #9) | keeps the bundle small. Underline is dropped from Markdown because Markdown cannot show it.
+- [123] Versions | full history table vs snapshot on save | snapshot on manual Save and before restore, one table, three endpoints (PR #10) | fits the time left. A restore can be undone, because the current state is saved first. Autosave does not add versions.
+- [141] Cleanup | keep the assignment text and drafts in the repo vs remove | removed prompt and submission drafts, the unused VersionFull schema and dead ignore rules (PR #12) | the user asked for it. Working log and root docs stay.
+- [142] Security | fix now vs document | no high-severity finding, so no code change. Limits written down: mock header is trusted, user list is public, print area uses sanitized editor output (PR #11).
+- [148] Restore test | change the app vs fix the test | fix the test. It read the editor before the restore finished. The app was correct (PR #14).
 
 ## AI Usage Log
 Format: `[min] tool | what I asked | what came back | kept / changed / rejected + why`
-- 
-- 
 
-Examples:
-- `[5] Claude | restate the prompt + Must/Should/Cut | good scope, but it put auth in Must | moved auth to Cut since prompt never mentions users`
-- `[70] Claude | review my upload endpoint for security | flagged no file size limit, missing content-type check | added both`
-- `[110] Claude Code | write the eval script | used an SDK method that doesn't exist | caught on first run, rewrote with the documented call`
+- [10] Claude | restate the prompt into must, should and cut | scope with stated assumptions | kept. Mock login, single share level and 2 MB upload limit came from it.
+- [24] Claude Code | build the Supabase sign-in path | code merged, but the sandbox could not reach Supabase to test it | changed. Reverted to mock login at the user's request (PR #5).
+- [84] Claude Code | fix the Render crash on a web URL in DATABASE_URL | added a startup guard and a CI boot check | kept.
+- [50] Claude Code | Playwright suite run failed with "API did not start" | Python was not on PATH with the deps | changed. Used a venv and set PYTHON for the run.
+- [115] Claude Code | build the dictation component | ESLint warned about exporting a non-component from the file | changed. Made the helper non-exported.
+- [118] Claude Code | build export and print | print CSS and a Markdown download test | kept.
+- [123] Claude Code | build version history | version test failed because Ben could not edit a doc he was not shared on | changed the test to share first. The feature was right.
+- [141] Claude Code | cleanup of prompt, drafts and dead code | removed the unused schema and the evals ignore rules | kept. Tests stayed at 30.
+- [142] Claude Code | security self-review of the repo | no high-severity issue | kept, no code change.
+- [148] Claude Code | version restore test failing on a fresh setup | the test read the editor before the restore landed | changed. The test now waits for the restored text. Passed 11 of 11 twice on main.
+- [91] Claude in Chrome | live check of the deployed site | the browser tab dropped once | kept. Recovered and finished the check.
 
 ## Commit log plan
 Commit after every working step. Messages like:
@@ -35,20 +46,10 @@ Commit after every working step. Messages like:
 - 200:
 
 ## Prep-day entries (done before the timer, say so if you use them)
-- `[prep] Structured JSON | forced tool_choice vs structured outputs | structured outputs (messages.parse + Pydantic) | Claude Opus 5.5 returns 400 on forced tool_choice, found while building the starter`
+- `[prep] Structured JSON | forced tool_choice vs structured outputs | structured outputs (messages.parse + Pydantic) | the Claude model returns 400 on forced tool_choice, found while building the starter`
 - `[prep] LLM in tests | real API vs fake client | fake client + LLM_MODE=mock | tests and CI run with no key and no cost`
 - `[prep] Review gate | LLM decides vs rules decide | rules in app/rules.py | rules can only add review, never remove it`
 
-
-## Decision log
-
-- **Auth: Supabase sign-in reverted to mock login with seeded users.** Supabase sign-in was built and merged in PR #4, then reverted at Bhavisha's request so the basics could be checked first. The app again uses seeded users (Ava, Ben, Cara) and an `X-User-Id` header. The Supabase code is gone. Still in place: Postgres via `DATABASE_URL`, owner delete, remove access, and the CI checks.
-
-- 2026-11-24 19:45 UTC. Dictation: used the browser Web Speech API in a small hand-written component, not OpenWhispr (a desktop Electron app, not embeddable in a web app) and not react-speech-recognition (extra dependency, faster to write our own). Works in Chrome and Edge; hidden with a note elsewhere.
-
-- 2026-11-24 19:55 UTC. Export: Markdown via turndown (underline is dropped, since Markdown has no underline). PDF uses the browser print dialog (Save as PDF), not a PDF library, to save time and keep the bundle small.
-
-- 2026-11-24 20:03 UTC. Versions: a snapshot on each manual Save (skipped if nothing changed) and before each restore, so a restore can be undone. Only owners and editors see the history. Versions are deleted with their document. Kept to one table and three endpoints, to fit the time left.
 
 ## Start
 - Start: 2026-11-24 17:48 UTC. Deadline: 21:48 UTC. Feature freeze: 21:08 UTC.
