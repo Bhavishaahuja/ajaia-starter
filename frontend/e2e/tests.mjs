@@ -2,7 +2,7 @@
 // Covers: create, rename, edit, format, save, reopen, autosave, import, sharing,
 // removing access, delete, and the blocked stranger.
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { chromium } from 'playwright'
@@ -150,6 +150,37 @@ test('dictation shows a note when the browser has no speech recognition', async 
   await newDocument(page)
   await page.getByText('Dictation needs Chrome or Edge.').waitFor({ timeout: 10000 })
   assert.equal(await page.getByRole('button', { name: 'Start dictation' }).count(), 0)
+})
+
+test('export as Markdown download, and PDF opens the print dialog', async (page, baseUrl) => {
+  // headless browsers can't show a print dialog, so count the calls instead
+  await page.addInitScript(() => {
+    window.__printed = 0
+    window.print = () => {
+      window.__printed++
+    }
+  })
+  await open(page, baseUrl, BEN)
+  await newDocument(page)
+  await page.getByLabel('Document title').fill('Q3 plan')
+  await page.locator('.ProseMirror').click()
+  await page.getByRole('button', { name: 'H1', exact: true }).click()
+  await page.keyboard.type('Goals')
+  await page.keyboard.press('Enter')
+  await page.getByRole('button', { name: 'Text', exact: true }).click()
+  await page.keyboard.type('Ship it')
+  await waitStatus(page, 'All changes saved')
+
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Markdown', exact: true }).click()
+  const download = await downloadPromise
+  assert.equal(download.suggestedFilename(), 'Q3-plan.md')
+  const markdown = readFileSync(await download.path(), 'utf8')
+  assert.match(markdown, /# Goals/)
+  assert.match(markdown, /Ship it/)
+
+  await page.getByRole('button', { name: 'PDF', exact: true }).click()
+  await waitUntil(async () => (await page.evaluate(() => window.__printed)) === 1, 'print dialog opened once')
 })
 
 test('import a .txt file as a new document', async (page, baseUrl) => {

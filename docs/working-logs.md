@@ -45,3 +45,5 @@ Commit after every working step. Messages like:
 - **Auth: Supabase sign-in reverted to mock login with seeded users.** Supabase sign-in was built and merged in PR #4, then reverted at Bhavisha's request so the basics could be checked first. The app again uses seeded users (Ava, Ben, Cara) and an `X-User-Id` header. The Supabase code is gone. Still in place: Postgres via `DATABASE_URL`, owner delete, remove access, and the CI checks.
 
 - 2026-11-24 19:45 UTC. Dictation: used the browser Web Speech API in a small hand-written component, not OpenWhispr (a desktop Electron app, not embeddable in a web app) and not react-speech-recognition (extra dependency, faster to write our own). Works in Chrome and Edge; hidden with a note elsewhere.
+
+- 2026-11-24 19:55 UTC. Export: Markdown via turndown (underline is dropped, since Markdown has no underline). PDF uses the browser print dialog (Save as PDF), not a PDF library, to save time and keep the bundle small.

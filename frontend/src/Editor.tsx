@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent, type Editor as TiptapEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Dictation from './Dictation'
+import { downloadMarkdown } from './exportDoc'
 import {
   deleteDocument,
   getDocument,
@@ -177,6 +178,14 @@ export default function Editor({ docId, user, onBack }: Props) {
   const [loadError, setLoadError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  // set when the user picks PDF; the print area fills, then the print dialog opens
+  const [printHtml, setPrintHtml] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (printHtml === null) return
+    window.print()
+    setPrintHtml(null)
+  }, [printHtml])
 
   // refs so the timer and save function always see the newest values
   const latest = useRef({ title: '', html: '' })
@@ -309,6 +318,20 @@ export default function Editor({ docId, user, onBack }: Props) {
           {statusText[saveState]}
         </span>
         <button
+          onClick={() => doc && downloadMarkdown(latest.current.title, editor?.getHTML() ?? '')}
+          disabled={!doc}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+        >
+          Markdown
+        </button>
+        <button
+          onClick={() => setPrintHtml(editor?.getHTML() ?? '')}
+          disabled={!doc}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+        >
+          PDF
+        </button>
+        <button
           onClick={() => void saveRef.current()}
           disabled={!doc || saveState === 'saving' || saveState === 'saved'}
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:opacity-40"
@@ -354,6 +377,14 @@ export default function Editor({ docId, user, onBack }: Props) {
           </div>
         )}
       </div>
+
+      {/* hidden on screen, shown only when printing to PDF */}
+      {printHtml !== null && (
+        <div id="print-area" className="print-area">
+          <h1>{title || 'Untitled document'}</h1>
+          <div className="doc-body-content" dangerouslySetInnerHTML={{ __html: printHtml }} />
+        </div>
+      )}
     </div>
   )
 }
