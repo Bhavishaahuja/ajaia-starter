@@ -12,7 +12,7 @@ from app.importer import UploadError, html_from_upload, sanitize_html
 from app.models import Document, Share, User
 from app.rules import can_share, role_for
 from app.schemas import DocCreate, DocOut, DocSummary, DocUpdate, ShareCreate, ShareOut, UserOut
-from app.seed import seed_users
+from app.seed import SEED_USERS, seed_users
 
 logging.basicConfig(level=logging.INFO)
 settings = get_settings()
@@ -94,8 +94,10 @@ def health():
 
 @app.get("/api/users", response_model=list[UserOut])
 def list_users(db: Session = Depends(get_db)):
-    # public on purpose, the switcher needs it before anyone picks a user
-    return db.scalars(select(User).order_by(User.id)).all()
+    # public on purpose, the switcher needs it before anyone picks a user.
+    # Only the demo seed users show up, so real sign-ups do not clutter the list.
+    seed_emails = [row["email"] for row in SEED_USERS]
+    return db.scalars(select(User).where(User.email.in_(seed_emails)).order_by(User.id)).all()
 
 
 @app.get("/api/documents", response_model=list[DocSummary])
