@@ -7,6 +7,12 @@ from app.config import get_settings
 def normalize_db_url(url: str) -> str:
     # Supabase and Render hand out postgres:// or postgresql:// URLs.
     # SQLAlchemy needs the driver name to use psycopg 3.
+    if url.startswith("https://") or url.startswith("http://"):
+        # the Supabase project URL is not a database URL. This was the Render crash.
+        raise RuntimeError(
+            "DATABASE_URL looks like a web URL. Use the Postgres URI "
+            "(postgresql://...) from Supabase Connect, not the project URL."
+        )
     if url.startswith("postgres://"):
         url = "postgresql://" + url[len("postgres://"):]
     if url.startswith("postgresql://"):
