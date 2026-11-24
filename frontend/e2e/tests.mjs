@@ -203,6 +203,11 @@ test('save keeps versions, and restore brings an older one back', async (page, b
 
   // the list is newest first, so the second Restore is the first draft
   await page.getByRole('button', { name: 'Restore' }).nth(1).click()
+  // wait for the restore to land. The editor still shows the old text until then.
+  await waitUntil(async () => {
+    const now = await page.locator('.ProseMirror').innerHTML()
+    return now.includes('second draft') ? null : now
+  }, 'restored text to replace the second draft')
   const html = await editorHtml(page, /first draft/)
   assert.doesNotMatch(html, /second draft/)
 })
