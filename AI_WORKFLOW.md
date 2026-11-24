@@ -17,7 +17,7 @@
 
 - Rejected the starter's LLM triage feature. The brief did not need it, and deleted the LLM module, evals and CI env var.
 - Rejected the idea of putting the LLM in the import step. Converting a file is deterministic, and the access checks must be exact.
-- Changed the first version of the access check so a stranger gets 404 instead of 403. A 403 would tell them the document exists.
+- Chose 404 (not 403) for strangers from the first draft, so a stranger cannot tell that a document exists.
 - Moved the user-switch refresh. My first version refreshed the document list before the new user id was set, so it would have sent the old id.
 
 ## How I verified
