@@ -2,7 +2,7 @@
 
 ## What I prioritized
 
-Access control and persistence first, then the editing flow, then import. The core question for this app is "who can see and change this document," and the server answers it on every route. Real login, real-time co-editing, comments and version history were cut. Each one is hours of work and none of them touches the core path.
+Access control and persistence first, then the editing flow, then import. The core question for this app is "who can see and change this document," and the server answers it on every route. Version history, dictation and export came after the core path was solid. Real login and real-time co-editing were cut. Each cut item is hours of work and none of them touches the core path.
 
 ## Shape of the system
 
@@ -64,13 +64,14 @@ The 2 MB limit is checked while reading the upload (413). Unsupported extensions
 
 - Mock auth. Any client can claim to be any seeded user.
 - Last write wins. Two people editing the same document at once will overwrite each other.
-- No delete document. No read-only role.
+- No read-only role. Shared users can edit.
+- Version history only snapshots on manual Save and before a restore. Autosave does not add a version.
 - The whole HTML body is sent on each save. Fine at this size, not for large documents.
 - No migrations, no rate limiting, no file storage. Imported files are converted and discarded, not kept.
 
 ## Next 2 to 4 hours
 
 1. Real login (magic link or OAuth) so the user id comes from a session, not a header
-2. Viewer role and a delete action for owners
-3. Version history with a snapshot on each save
-4. Real-time presence with a websocket (show who is in the doc)
+2. Viewer role, so a shared person can read without editing
+3. Real-time presence with a websocket (show who is in the doc)
+4. Alembic migrations, and a compare view between two version snapshots
