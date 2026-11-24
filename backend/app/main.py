@@ -1,8 +1,8 @@
 import logging
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app import auth
@@ -24,7 +24,7 @@ app = FastAPI(title="Collaborative doc editor API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -225,3 +225,31 @@ def share_document(
         db.add(Share(doc_id=doc.id, user_id=target.id))
         db.commit()
     return ShareOut(user_id=target.id, email=target.email, name=target.name)
+
+
+@app.delete("/api/documents/{doc_id}", status_code=204)
+def delete_document(doc_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    doc, role = load_doc_for(doc_id, user, db)
+    if not can_share(role):
+        # same rule as sharing: only the owner manages the document's access
+        raise HTTPException(status_code=403, detail="Only the owner can delete this document.")
+    # drop the share rows first, then the document
+    db.execute(delete(Share).where(Share.doc_id == doc.id))
+    db.delete(doc)
+    db.commit()
+    return Response(status_code=204)
+
+
+@app.delete("/api/documents/{doc_id}/shares/{user_id}", status_code=204)
+def remove_share(
+    doc_id: int,
+    user_id: int,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    doc, role = load_doc_for(doc_id, user, db)
+    if not can_share(role):
+        raise HTTPException(status_code=403, detail="Only the owner can remove access.")
+    db.execute(delete(Share).where(Share.doc_id == doc.id, Share.user_id == user_id))
+    db.commit()
+    return Response(status_code=204)

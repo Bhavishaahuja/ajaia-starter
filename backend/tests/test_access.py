@@ -154,3 +154,35 @@ def test_empty_title_rejected(client):
     doc = make_doc(client, "tok-ava")
     res = client.patch(f"/api/documents/{doc['id']}", json={"title": "   "}, headers=auth("tok-ava"))
     assert res.status_code == 422
+
+
+def test_owner_can_delete_document(client):
+    sign_in(client, "tok-ben")
+    doc = make_doc(client, "tok-ava")
+    client.post(f"/api/documents/{doc['id']}/shares", json={"email": BEN}, headers=auth("tok-ava"))
+
+    # Ben (editor) cannot delete it
+    assert client.delete(f"/api/documents/{doc['id']}", headers=auth("tok-ben")).status_code == 403
+
+    # Ava (owner) can, and it is gone for Ben too
+    assert client.delete(f"/api/documents/{doc['id']}", headers=auth("tok-ava")).status_code == 204
+    assert client.get(f"/api/documents/{doc['id']}", headers=auth("tok-ava")).status_code == 404
+    assert client.get("/api/documents", headers=auth("tok-ben")).json() == []
+
+
+def test_owner_can_remove_edit_access(client):
+    sign_in(client, "tok-ben")
+    doc = make_doc(client, "tok-ava")
+    url = f"/api/documents/{doc['id']}"
+    client.post(f"{url}/shares", json={"email": BEN}, headers=auth("tok-ava"))
+    assert client.get(url, headers=auth("tok-ben")).status_code == 200
+
+    ben_id = client.get("/api/me", headers=auth("tok-ben")).json()["id"]
+
+    # Ben cannot remove access, even for himself
+    assert client.delete(f"{url}/shares/{ben_id}", headers=auth("tok-ben")).status_code == 403
+
+    res = client.delete(f"{url}/shares/{ben_id}", headers=auth("tok-ava"))
+    assert res.status_code == 204
+    assert client.get(url, headers=auth("tok-ben")).status_code == 404
+    assert client.get(f"{url}/shares", headers=auth("tok-ava")).json() == []

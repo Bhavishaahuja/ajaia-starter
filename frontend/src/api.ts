@@ -57,6 +57,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     }
     throw new ApiError(message, res.status)
   }
+  if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
 }
 
@@ -98,4 +99,12 @@ export function shareDocument(id: number, email: string) {
     method: 'POST',
     body: JSON.stringify({ email }),
   })
+}
+
+export function deleteDocument(id: number) {
+  return request<void>(`/api/documents/${id}`, { method: 'DELETE' })
+}
+
+export function removeShare(docId: number, userId: number) {
+  return request<void>(`/api/documents/${docId}/shares/${userId}`, { method: 'DELETE' })
 }
