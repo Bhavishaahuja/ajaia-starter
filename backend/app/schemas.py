@@ -62,7 +62,3 @@ class VersionOut(BaseModel):
     title: str
     created_by_name: str
     created_at: datetime
-
-
-class VersionFull(VersionOut):
-    html: str

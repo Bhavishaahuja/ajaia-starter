@@ -10,7 +10,6 @@ __pycache__/
 .venv/
 venv/
 *.db
-backend/evals/results.md
 
 # node
 node_modules/
