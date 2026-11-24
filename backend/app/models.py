@@ -40,3 +40,15 @@ class Share(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     doc_id: Mapped[int] = mapped_column(ForeignKey("documents.id"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+
+
+class DocVersion(Base):
+    # a saved snapshot of a document, made on a manual save or before a restore
+    __tablename__ = "doc_versions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    doc_id: Mapped[int] = mapped_column(ForeignKey("documents.id"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    html: Mapped[str] = mapped_column(Text)
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

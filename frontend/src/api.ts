@@ -108,3 +108,17 @@ export function deleteDocument(id: number) {
 export function removeShare(docId: number, userId: number) {
   return request<void>(`/api/documents/${docId}/shares/${userId}`, { method: 'DELETE' })
 }
+
+export type Version = { id: number; title: string; created_by_name: string; created_at: string }
+
+export function listVersions(docId: number) {
+  return request<Version[]>(`/api/documents/${docId}/versions`)
+}
+
+export function saveVersion(docId: number) {
+  return request<Version>(`/api/documents/${docId}/versions`, { method: 'POST' })
+}
+
+export function restoreVersion(docId: number, versionId: number) {
+  return request<DocFull>(`/api/documents/${docId}/versions/${versionId}/restore`, { method: 'POST' })
+}

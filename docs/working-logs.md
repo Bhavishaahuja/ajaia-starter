@@ -47,3 +47,5 @@ Commit after every working step. Messages like:
 - 2026-11-24 19:45 UTC. Dictation: used the browser Web Speech API in a small hand-written component, not OpenWhispr (a desktop Electron app, not embeddable in a web app) and not react-speech-recognition (extra dependency, faster to write our own). Works in Chrome and Edge; hidden with a note elsewhere.
 
 - 2026-11-24 19:55 UTC. Export: Markdown via turndown (underline is dropped, since Markdown has no underline). PDF uses the browser print dialog (Save as PDF), not a PDF library, to save time and keep the bundle small.
+
+- 2026-11-24 20:03 UTC. Versions: a snapshot on each manual Save (skipped if nothing changed) and before each restore, so a restore can be undone. Only owners and editors see the history. Versions are deleted with their document. Kept to one table and three endpoints, to fit the time left.
