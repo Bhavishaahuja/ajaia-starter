@@ -60,13 +60,14 @@ export default function DocumentList({ docs, onOpen, onChanged, onError }: Props
     setBusy(true)
     try {
       const doc = await importDocument(file)
+      onChanged()
       onOpen(doc.id)
     } catch (e) {
+      // keep the error on screen. A refresh here would clear it.
       onError((e as Error).message)
     } finally {
       setBusy(false)
       if (fileInput.current) fileInput.current.value = ''
-      onChanged()
     }
   }
 

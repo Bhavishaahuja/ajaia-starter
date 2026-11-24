@@ -68,6 +68,18 @@ cd backend
 pytest -q
 ```
 
+Browser tests (Playwright) start the API and the frontend, then click through the whole flow with the seeded users:
+
+```
+cd frontend
+npm install
+npx playwright install chromium
+set PYTHON=..\backend\.venv\Scripts\python.exe
+npm run e2e
+```
+
+On Linux or Mac, use `PYTHON=../backend/.venv/bin/python npm run e2e`. Set `CHROME_PATH` to a Chromium binary if you do not want to install one with Playwright.
+
 ```
 cd frontend
 npm run lint

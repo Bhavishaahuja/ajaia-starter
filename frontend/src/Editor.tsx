@@ -127,7 +127,7 @@ function SharePanel({ doc, user }: { doc: DocFull; user: User }) {
         <input
           type="email"
           required
-          placeholder="colleague@example.com"
+          placeholder="ben@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
@@ -137,7 +137,7 @@ function SharePanel({ doc, user }: { doc: DocFull; user: User }) {
         </button>
       </form>
       <p className="text-xs text-slate-500">
-        Shared people can open and edit. They need an account first.
+        Shared people can open and edit. Seed users: ben@example.com, cara@example.com.
       </p>
       {error && <p className="text-xs text-red-700">{error}</p>}
       {note && <p className="text-xs text-green-700">{note}</p>}
